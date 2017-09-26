@@ -5,7 +5,7 @@ variable "aws-keypair-name" {
 
 variable "aws-public-key" {
   description = "Full filepath of AWS public SSH key to connect with"
-  default = "~/.ssh/test-keypair.pub"
+  default     = "~/.ssh/test-keypair.pub"
 }
 
 variable "aws-private-key" {

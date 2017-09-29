@@ -56,6 +56,11 @@ resource "aws_security_group" "test-sg-01" {
 
 data "template_file" "userdata" {
   template = "${file("./userdata.tpl")}"
+
+  vars = {
+    region = "${var.aws-region}"
+    vpc_id = "${aws_vpc.test-vpc-01.id}"
+  }
 }
 
 resource "aws_instance" "test-ubuntu-01" {
@@ -78,6 +83,8 @@ resource "aws_instance" "test-ubuntu-01" {
 
   provisioner "remote-exec" {
     inline = [
+      "echo 'Sleeping 2 seconds..'",
+      "sleep 2",
       "sudo cat /tmp/ryan.txt"
     ]
   }

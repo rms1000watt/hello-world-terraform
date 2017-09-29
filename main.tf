@@ -64,22 +64,18 @@ data "template_file" "userdata" {
 }
 
 resource "aws_instance" "test-ubuntu-01" {
+  instance_type               = "t2.nano"
+  ami                         = "${lookup(var.aws-amis, var.aws-region)}"
+  key_name                    = "${var.aws-keypair-name}"
+  vpc_security_group_ids      = ["${aws_security_group.test-sg-01.id}"]
+  subnet_id                   = "${aws_subnet.test-snet-01.id}"
+  associate_public_ip_address = true
+  user_data                   = "${data.template_file.userdata.rendered}"
+
   connection {
     user        = "ubuntu"
     private_key = "${file(var.aws-private-key)}"
   }
-
-  instance_type = "t2.nano"
-  ami           = "${lookup(var.aws-amis, var.aws-region)}"
-
-  key_name = "${var.aws-keypair-name}"
-
-  vpc_security_group_ids = ["${aws_security_group.test-sg-01.id}"]
-  subnet_id              = "${aws_subnet.test-snet-01.id}"
-
-  associate_public_ip_address = true
-
-  user_data = "${data.template_file.userdata.rendered}"
 
   provisioner "remote-exec" {
     inline = [

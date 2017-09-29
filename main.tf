@@ -54,6 +54,10 @@ resource "aws_security_group" "test-sg-01" {
   }
 }
 
+data "template_file" "userdata" {
+  template = "${file("./userdata.tpl")}"
+}
+
 resource "aws_instance" "test-ubuntu-01" {
   connection {
     user        = "ubuntu"
@@ -70,9 +74,11 @@ resource "aws_instance" "test-ubuntu-01" {
 
   associate_public_ip_address = true
 
+  user_data = "${data.template_file.userdata.rendered}"
+
   provisioner "remote-exec" {
     inline = [
-      "echo 'Hello World'",
+      "sudo cat /tmp/ryan.txt"
     ]
   }
 

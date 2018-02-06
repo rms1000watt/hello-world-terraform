@@ -1,3 +1,30 @@
+variable "aws-keypair-name" {
+  description = "Name of AWS key pair to use or create"
+  default     = "test-keypair"
+}
+
+variable "aws-public-key" {
+  description = "Full filepath of AWS public SSH key to connect with"
+  default     = "~/.ssh/test-keypair.pub"
+}
+
+variable "aws-private-key" {
+  description = "Full filepath of AWS private key to connect with"
+  default     = "~/.ssh/test-keypair.pem"
+}
+
+variable "aws-region" {
+  description = "AWS region to launch servers"
+  default     = "us-east-2"
+}
+
+variable "aws-amis" {
+  default = {
+    us-west-2 = "ami-6e1a0117"
+    us-east-2 = "ami-2581aa40"
+  }
+}
+
 provider "aws" {
   region = "${var.aws-region}"
 }
@@ -54,23 +81,14 @@ resource "aws_security_group" "test-sg-01" {
   }
 }
 
-data "template_file" "userdata" {
-  template = "${file("./userdata.tpl")}"
-
-  vars = {
-    region = "${var.aws-region}"
-    vpc_id = "${aws_vpc.test-vpc-01.id}"
-  }
-}
-
-resource "aws_instance" "test-ubuntu-01" {
+resource "aws_instance" "test-mgt" {
+  count                       = 1
   instance_type               = "t2.nano"
   ami                         = "${lookup(var.aws-amis, var.aws-region)}"
   key_name                    = "${var.aws-keypair-name}"
   vpc_security_group_ids      = ["${aws_security_group.test-sg-01.id}"]
   subnet_id                   = "${aws_subnet.test-snet-01.id}"
   associate_public_ip_address = true
-  user_data                   = "${data.template_file.userdata.rendered}"
 
   connection {
     user        = "ubuntu"
@@ -80,12 +98,47 @@ resource "aws_instance" "test-ubuntu-01" {
   provisioner "remote-exec" {
     inline = [
       "echo 'Sleeping 2 seconds..'",
-      "sleep 2",
-      "sudo cat /tmp/ryan.txt"
+      "sleep 2"
     ]
   }
 
   tags {
-    Name = "test-ubuntu-01"
+    Name = "${format("test-mgt-%02d", count.index+1)}"
   }
+}
+
+data "template_file" "userdata" {
+  template = "${file("./userdata.tpl")}"
+
+  // vars = {
+  //   region = "${var.aws-region}"
+  //   vpc_id = "${aws_vpc.test-vpc-01.id}"
+  // }
+}
+
+resource "aws_instance" "test-svc" {
+  count                       = 2
+  instance_type               = "t2.nano"
+  ami                         = "${lookup(var.aws-amis, var.aws-region)}"
+  key_name                    = "${var.aws-keypair-name}"
+  vpc_security_group_ids      = ["${aws_security_group.test-sg-01.id}"]
+  subnet_id                   = "${aws_subnet.test-snet-01.id}"
+  associate_public_ip_address = false
+  user_data                   = "${data.template_file.userdata.rendered}"
+
+  tags {
+    Name = "${format("test-svc-%02d", count.index+1)}"
+  }
+}
+
+output "public mgt" {
+  value = ["${aws_instance.test-mgt.*.public_ip}"]
+}
+
+output "private mgt" {
+  value = ["${aws_instance.test-mgt.*.private_ip}"]
+}
+
+output "private svc" {
+  value = ["${aws_instance.test-svc.*.private_ip}"]
 }
